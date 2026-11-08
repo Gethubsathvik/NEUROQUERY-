@@ -47,12 +47,12 @@ question -> schema-aware prompt -> LLM (or demo engine) -> SQL
 | `app/main.py` | 🌐 FastAPI endpoints and static UI hosting |
 
 ### 🛡️ Safety model (defense in depth)
-1. **Validator**: exactly one statement, SELECT/WITH/UNION only, known tables only, no
+1. 🔍 **Validator**: exactly one statement, SELECT/WITH/UNION only, known tables only, no
    `PRAGMA`/`ATTACH`/DDL/DML, no `load_extension`, no table-valued functions.
-2. **Read-only connection** (`mode=ro`), so writes are impossible at the database level.
-3. **SQLite authorizer**: only `SELECT` plus reads on allow-listed tables; `sqlite_master` is blocked.
-4. **Limits**: 500-row cap (flagged as truncated) and a 3 s query timeout.
-5. **No unsafe repair**: unsafe SQL is **never auto-repaired**; it is rejected with HTTP 400.
+2. 🔒 **Read-only connection** (`mode=ro`), so writes are impossible at the database level.
+3. 👮 **SQLite authorizer**: only `SELECT` plus reads on allow-listed tables; `sqlite_master` is blocked.
+4. ⏱️ **Limits**: 500-row cap (flagged as truncated) and a 3 s query timeout.
+5. 🚫 **No unsafe repair**: unsafe SQL is **never auto-repaired**; it is rejected with HTTP 400.
 
 ## 🔌 API
 
@@ -71,10 +71,10 @@ NEUROQUERY can be understood (and refactored) using an MVC + service layering. T
 
 | Layer | Responsibility | Current mapping | Target (example) |
 |---|---|---|---|
-| **Model** | Data shapes, schema, persistence contracts | `app/db.py` (schema/query), `app/history.py`, SQLite tables | `app/models/` (domain entities, DTOs/schemas) + repository interfaces |
-| **View** | Presentation / UI | `static/index.html` (table/chart rendering, CSV download) | `static/` or a frontend app (React/Vue) consuming the API |
-| **Controller** | HTTP boundary: parse input, call services, return responses | `app/main.py` (FastAPI routes) | Thin route handlers that delegate to services only |
-| **Service** | Business logic / orchestration (no HTTP, no UI) | Logic spread across `main.py`, `llm.py`, `safety.py`, `charts.py` | `app/services/` e.g. `query_service` (ask flow), `ingest_service` (CSV), `eval_service` |
+| **🗄️ Model** | Data shapes, schema, persistence contracts | `app/db.py` (schema/query), `app/history.py`, SQLite tables | `app/models/` (domain entities, DTOs/schemas) + repository interfaces |
+| **🖥️ View** | Presentation / UI | `static/index.html` (table/chart rendering, CSV download) | `static/` or a frontend app (React/Vue) consuming the API |
+| **🎛️ Controller** | HTTP boundary: parse input, call services, return responses | `app/main.py` (FastAPI routes) | Thin route handlers that delegate to services only |
+| **⚙️ Service** | Business logic / orchestration (no HTTP, no UI) | Logic spread across `main.py`, `llm.py`, `safety.py`, `charts.py` | `app/services/` e.g. `query_service` (ask flow), `ingest_service` (CSV), `eval_service` |
 
 **Key rules for this structure:**
 - 🎛️ Controllers do **not** contain SQL, LLM, or chart logic—they orchestrate services.
@@ -159,10 +159,10 @@ The current app is a **modular monolith**—the right starting point. Microservi
 **Communication:** synchronous REST/gRPC between gateway and core services; async queue (e.g., Redis/SQS) for evaluation and heavy jobs. **Shared contract:** versioned schemas/DTOs; never share databases across services.
 
 **Migration path (incremental):**
-1. **Modular monolith first** (now): clear module boundaries, service layer, interfaces for `Generator`/`Executor`/`Validator`.
-2. **Extract the safest seams:** move `LLM` behind an internal interface/adapter; keep safety + execution in-process until contracts are stable.
-3. **Split read-heavy/risky components:** isolate data connectors (credentials/policy) and/or evaluation (batch) as separate deployables.
-4. **Add platform concerns:** gateway auth, observability (traces/metrics), centralized config/secrets.
+1. 🧱 **Modular monolith first** (now): clear module boundaries, service layer, interfaces for `Generator`/`Executor`/`Validator`.
+2. 🧩 **Extract the safest seams:** move `LLM` behind an internal interface/adapter; keep safety + execution in-process until contracts are stable.
+3. ✂️ **Split read-heavy/risky components:** isolate data connectors (credentials/policy) and/or evaluation (batch) as separate deployables.
+4. ☁️ **Add platform concerns:** gateway auth, observability (traces/metrics), centralized config/secrets.
 
 ## 🧠 How to start (mentation / mental model)
 
@@ -222,6 +222,6 @@ docker build -t neuroquery . && docker run -p 8000:8000 -e ANTHROPIC_API_KEY=you
 
 ## 📄 Resume bullets
 
-- Built a natural-language-to-SQL analytics app (FastAPI, SQLite, Claude API) with schema-aware prompting, a one-shot SQL self-repair loop and automatic chart selection.
-- Designed a 3-layer SQL safety model (sqlglot AST validation, read-only connection, SQLite authorizer) and verified it with adversarial tests.
-- Implemented an execution-accuracy evaluation harness and a 40-test suite for regression tracking.
+- 🤖 Built a natural-language-to-SQL analytics app (FastAPI, SQLite, Claude API) with schema-aware prompting, a one-shot SQL self-repair loop and automatic chart selection.
+- 🛡️ Designed a 3-layer SQL safety model (sqlglot AST validation, read-only connection, SQLite authorizer) and verified it with adversarial tests.
+- 📊 Implemented an execution-accuracy evaluation harness and a 40-test suite for regression tracking.
