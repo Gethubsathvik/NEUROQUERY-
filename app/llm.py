@@ -1,6 +1,6 @@
 """Question -> SQL generators.
 
-- AnthropicGenerator: real NL-to-SQL via the Claude Messages API (set ANTHROPIC_API_KEY).
+- LLMGenerator: real NL-to-SQL via an HTTP JSON chat-completions-style API (set LLM_API_KEY).
 - DemoGenerator: offline rule-based engine for the sample database, so the app works
   with zero setup and tests run without network access.
 """
@@ -13,8 +13,8 @@ from dataclasses import dataclass
 
 import httpx
 
-API_URL = "https://api.anthropic.com/v1/messages"
-ANTHROPIC_VERSION = "2023-06-01"
+DEFAULT_API_URL = "https://api.openai.com/v1/chat/completions"
+DEFAULT_MODEL = "gpt-4o-mini"
 
 EXAMPLES = [
     "Top 5 customers by revenue",
@@ -126,16 +126,16 @@ class DemoGenerator:
                 "Total revenue from completed orders.")
 
         raise NoAnswer(
-            "Demo mode (no ANTHROPIC_API_KEY set) only understands the sample questions, such as: "
+            "Demo mode (no LLM_API_KEY set) only understands the sample questions, such as: "
             + "; ".join(EXAMPLES[:5])
-            + ". Set ANTHROPIC_API_KEY to ask anything about your data."
+            + ". Set LLM_API_KEY (and optionally LLM_API_URL/NEUROQUERY_MODEL) to ask anything about your data."
         )
 
     def repair(self, question: str, schema_text: str, bad_sql: str, error: str) -> GeneratedSQL:
         raise NoAnswer("The demo engine cannot repair queries.")
 
 
-# ----------------------------------------------------------------------- anthropic
+# --------------------------------------------------------------------------- llm
 SYSTEM_PROMPT = (
     "You are a careful data analyst who writes SQLite queries. "
     "Given a database schema and a question, reply with ONLY a JSON object: "
@@ -163,28 +163,36 @@ def _parse_json_reply(text: str) -> GeneratedSQL:
     return GeneratedSQL(sql.strip(), explanation)
 
 
-class AnthropicGenerator:
-    name = "anthropic"
+class LLMGenerator:
+    name = "llm"
 
-    def __init__(self, api_key: str, model: str, timeout: float = 30.0):
-        self.api_key, self.model, self.timeout = api_key, model, timeout
+    def __init__(self, api_key: str, model: str, api_url: str = DEFAULT_API_URL, timeout: float = 30.0):
+        self.api_key, self.model, self.api_url, self.timeout = api_key, model, api_url, timeout
 
     def _call(self, user_prompt: str) -> GeneratedSQL:
         try:
             r = httpx.post(
-                API_URL,
-                headers={"x-api-key": self.api_key, "anthropic-version": ANTHROPIC_VERSION,
-                         "content-type": "application/json"},
-                json={"model": self.model, "max_tokens": 1024, "system": SYSTEM_PROMPT,
-                      "messages": [{"role": "user", "content": user_prompt}]},
+                self.api_url,
+                headers={"authorization": f"Bearer {self.api_key}", "content-type": "application/json"},
+                json={
+                    "model": self.model,
+                    "temperature": 0,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                },
                 timeout=self.timeout,
             )
         except httpx.HTTPError as e:
             raise GenerationError(f"LLM request failed: {e.__class__.__name__}") from e
         if r.status_code != 200:
             raise GenerationError(f"LLM API returned status {r.status_code}")
-        blocks = r.json().get("content", [])
-        return _parse_json_reply("".join(b.get("text", "") for b in blocks if b.get("type") == "text"))
+        try:
+            msg = r.json()["choices"][0]["message"]["content"] or ""
+        except Exception as e:
+            raise GenerationError("LLM API returned an unexpected response shape.") from e
+        return _parse_json_reply(msg)
 
     def generate(self, question: str, schema_text: str) -> GeneratedSQL:
         return self._call(f"Schema:\n{schema_text}\n\nQuestion: {question}")
@@ -198,7 +206,9 @@ class AnthropicGenerator:
 
 
 def get_generator():
-    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    key = os.environ.get("LLM_API_KEY", "").strip()
     if key and os.environ.get("NEUROQUERY_ENGINE", "").lower() != "demo":
-        return AnthropicGenerator(key, os.environ.get("NEUROQUERY_MODEL", "claude-sonnet-5-5"))
+        model = os.environ.get("NEUROQUERY_MODEL", "").strip() or DEFAULT_MODEL
+        api_url = os.environ.get("LLM_API_URL", "").strip() or DEFAULT_API_URL
+        return LLMGenerator(key, model, api_url)
     return DemoGenerator()

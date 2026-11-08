@@ -16,10 +16,10 @@ python -m uvicorn app.main:app --reload
 Without a key the app runs in **🧪 offline demo mode**: a rule-based engine answers the sample
 questions on the built-in e-commerce database (250 customers, 2,600 orders).
 
-### 🤖 Real natural language (Claude)
+### 🤖 Real natural language (LLM)
 
 ```bash
-export ANTHROPIC_API_KEY=your_key      # Windows PowerShell: $env:ANTHROPIC_API_KEY="your_key"
+export LLM_API_KEY=your_key      # Windows PowerShell: $env:LLM_API_KEY="your_key"
 python -m uvicorn app.main:app --reload
 ```
 
@@ -39,7 +39,7 @@ question -> schema-aware prompt -> LLM (or demo engine) -> SQL
 
 | File | Role |
 |---|---|
-| `app/llm.py` | 🤖 `AnthropicGenerator` (real) and `DemoGenerator` (offline), same interface |
+| `app/llm.py` | 🤖 `LLMGenerator` (real) and `DemoGenerator` (offline), same interface |
 | `app/safety.py` | 🛡️ Static SQL validation: single SELECT only, table allow-list, blocked functions |
 | `app/db.py` | 🗄️ Schema introspection, hardened read-only execution, CSV import |
 | `app/charts.py` | 📈 Chooses metric / line / bar / table from result shape |
@@ -124,9 +124,9 @@ app/
       harness.py            # execution-accuracy runner (or keep in eval/)
       golden.json
   integrations/
-    llm/                    # Anthropic + demo engine adapters
+    llm/                    # LLM + demo engine adapters
       base.py               # generator interface
-      anthropic.py
+      provider.py
       demo.py
   safety/
     validator.py            # sqlglot/static validation rules
@@ -191,7 +191,7 @@ Use three tight cycles to prove NEUROQUERY works end-to-end (demo-safe, then rea
 |---|---|---|---|---|
 | **1) Safety & correctness** | Prove the pipeline is safe and green | `python -m pytest` | All tests pass (safety/DB/API/eval); no unsafe SQL path regressed | ✅ 0 failures; safety rules intact |
 | **2) Live demo flow** | Prove the UI/API flow works | `python -m uvicorn app.main:app --reload` + ask 2–3 sample questions (and optional CSV upload) in `http://localhost:8000` | SQL shown, table/chart rendered, history updates; upload answers (with API key if needed) | ✅ End-to-end question answered; error states are clear |
-| **3) Accuracy/evaluation** | Prove NL2SQL quality is measurable | `python -m app.evaluate` (demo) and `ANTHROPIC_API_KEY=... python -m app.evaluate` (real) | `eval/report.json` + execution-accuracy score; note deltas/failures | ✅ Score recorded in `docs/MEMORY.md`; golden cases reviewed/expanded |
+| **3) Accuracy/evaluation** | Prove NL2SQL quality is measurable | `python -m app.evaluate` (demo) and `LLM_API_KEY=... python -m app.evaluate` (real) | `eval/report.json` + execution-accuracy score; note deltas/failures | ✅ Score recorded in `docs/MEMORY.md`; golden cases reviewed/expanded |
 
 **Record after each cycle:** outcome, evidence (command/screenshot/report), and any decision/gotcha in `docs/MEMORY.md` / `docs/TASKS.md`.
 
@@ -209,7 +209,7 @@ Run it with your API key to get a real score for the LLM, and add more cases as 
 ## 🐳 Docker
 
 ```bash
-docker build -t neuroquery . && docker run -p 8000:8000 -e ANTHROPIC_API_KEY=your_key neuroquery
+docker build -t neuroquery . && docker run -p 8000:8000 -e LLM_API_KEY=your_key neuroquery
 ```
 
 ## 🗺️ Roadmap (after the MVP)
@@ -222,6 +222,17 @@ docker build -t neuroquery . && docker run -p 8000:8000 -e ANTHROPIC_API_KEY=you
 
 ## 📄 Resume bullets
 
-- 🤖 Built a natural-language-to-SQL analytics app (FastAPI, SQLite, Claude API) with schema-aware prompting, a one-shot SQL self-repair loop and automatic chart selection.
+- 🤖 Built a natural-language-to-SQL analytics app (FastAPI, SQLite, LLM API) with schema-aware prompting, a one-shot SQL self-repair loop and automatic chart selection.
 - 🛡️ Designed a 3-layer SQL safety model (sqlglot AST validation, read-only connection, SQLite authorizer) and verified it with adversarial tests.
 - 📊 Implemented an execution-accuracy evaluation harness and a 40-test suite for regression tracking.
+
+## 📚 Docs
+
+| Doc | Purpose |
+|---|---|
+| [`docs/PRD.md`](docs/PRD.md) | Product requirements (what/why) |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design and request flow (how) |
+| [`docs/RULES.md`](docs/RULES.md) | Safety, code, testing, and workflow rules |
+| [`docs/DESIGN.md`](docs/DESIGN.md) | UI tokens and interaction states |
+| [`docs/TASKS.md`](docs/TASKS.md) | Plan and three-cycle live proof checklist |
+| [`docs/MEMORY.md`](docs/MEMORY.md) | Decisions, gotchas, evaluation/proof logs |

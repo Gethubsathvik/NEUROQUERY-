@@ -4,7 +4,7 @@ The UI is one file, `static/index.html`: plain HTML, CSS variables and vanilla J
 Principles: clarity first (always show the SQL), calm neutral surfaces, one accent color, works in light and dark.
 
 ## 1. 🧱 Layout
-- **Header:** product name, engine badge (`engine: demo (offline)` or `engine: anthropic`), one-line tagline.
+- **Header:** product name, engine badge (`engine: demo (offline)` or `engine: llm`), one-line tagline.
 - **Two-column grid:** **280 px sidebar** + flexible main column. Max width 1300 px, 16 px gap, page padding 16 px / 20 px.
 - **Responsive:** below **860 px** the grid collapses to one column (sidebar content stacks above main).
 - **Sidebar cards:** **🗂️ Data** (schema), **📤 Upload CSV**, **🕘 History**.
@@ -65,7 +65,7 @@ Color is never the only carrier of meaning: multi-series charts show a legend.
 
 ## 6. ✍️ Content and tone
 - Short, plain-English messages; say what happened and what to try next.
-- Demo-mode errors list sample questions and mention `ANTHROPIC_API_KEY`.
+- Demo-mode errors list sample questions and mention the API key (`LLM_API_KEY`).
 - Never show stack traces, paths or keys.
 
 ## 7. ♿ Accessibility

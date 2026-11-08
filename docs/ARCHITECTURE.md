@@ -2,7 +2,7 @@
 
 ## 1. 🔭 Overview
 A single FastAPI service serves a JSON API and a static single-page UI. SQL generation is
-pluggable (Claude API or offline demo engine). All generated SQL goes through the same
+pluggable (LLM API or offline demo engine). All generated SQL goes through the same
 validation and hardened execution path.
 
 ```
@@ -11,7 +11,7 @@ Browser (static/index.html, vanilla JS + Chart.js)
         ▼
 FastAPI (app/main.py)
   /api/ask ─► schema_text()        (app/db.py)
-           ─► Generator.generate() (app/llm.py: Anthropic | Demo)
+           ─► Generator.generate() (app/llm.py: LLM | Demo)
            ─► validate_sql()       (app/safety.py, sqlglot AST)
            ─► Database.run_query() (app/db.py: read-only + authorizer + cap + timeout)
            ─► suggest_chart()      (app/charts.py)
@@ -25,7 +25,7 @@ SQLite files in NEUROQUERY_DATA_DIR:  neuroquery.db (data)   history.db (query l
 | Module | Responsibility |
 |---|---|
 | `app/main.py` | 🌐 `create_app()` factory, endpoints, error-to-HTTP mapping, static hosting |
-| `app/llm.py` | 🤖 `GeneratedSQL`, `NoAnswer`, `GenerationError`, `DemoGenerator`, `AnthropicGenerator`, `get_generator()` |
+| `app/llm.py` | 🤖 `GeneratedSQL`, `NoAnswer`, `GenerationError`, `DemoGenerator`, `LLMGenerator`, `get_generator()` |
 | `app/safety.py` | 🛡️ `validate_sql()` and `UnsafeSQLError`: static analysis with sqlglot |
 | `app/db.py` | 🗄️ `Database`: seeding, schema + `schema_text()`, `run_query()`, `import_csv()`; authorizer |
 | `app/seed.py` | 🌱 Deterministic sample e-commerce data (random seed 42) |
@@ -93,8 +93,9 @@ Error mapping: 400 unsafe SQL or bad upload · 408 timeout · 422 unanswerable, 
 ## 8. ⚙️ Configuration (environment)
 | Variable | Default | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | unset | Enables the LLM engine |
-| `NEUROQUERY_MODEL` | `claude-sonnet-5-5` | Model used for generation and repair |
+| `LLM_API_KEY` | unset | Enables the LLM engine |
+| `LLM_API_URL` | provider default (chat-completions style) | Override the LLM HTTP endpoint |
+| `NEUROQUERY_MODEL` | `gpt-4o-mini` | Model used for generation and repair |
 | `NEUROQUERY_ENGINE` | unset | `demo` forces the offline engine |
 | `NEUROQUERY_DATA_DIR` | `./data` | Location of `neuroquery.db` and `history.db` |
 | `NEUROQUERY_MAX_ROWS` | 500 | Row cap per query |
@@ -108,7 +109,7 @@ Error mapping: 400 unsafe SQL or bad upload · 408 timeout · 422 unanswerable, 
 | sqlglot AST validation instead of regex | Robust against comments, casing and nesting tricks |
 | Defense in depth (validator + read-only + authorizer + limits) | No single layer is trusted |
 | Never repair unsafe SQL | Avoids letting an attacker iterate against the validator |
-| Raw `httpx` call to the Messages API | Small dependency footprint, no SDK needed |
+| Raw `httpx` HTTP call to the LLM API | Small dependency footprint, provider-configurable |
 | SQLite and single-file UI | Fast to run, fork and demo; trade-off is no multi-user or scale features |
 | `create_app()` factory | Tests get isolated data dirs and injected generators |
 

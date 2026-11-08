@@ -74,7 +74,7 @@ with an evaluation harness.
 
 ## 10. 🧱 Constraints and assumptions
 - SQLite only; single shared database per deployment.
-- LLM mode needs `ANTHROPIC_API_KEY` and outbound network access.
+- LLM mode needs `LLM_API_KEY` (and optional `LLM_API_URL`/`NEUROQUERY_MODEL`) and outbound network access.
 - Browser needs internet to load Chart.js from the CDN (table view works without).
 
 ## 11. ⚠️ Risks

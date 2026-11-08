@@ -32,7 +32,7 @@ Rules for contributors and AI coding assistants working in this repository.
 ## 4. 🤖 LLM and prompt rules
 - The system prompt requires a JSON-only reply with a single read-only SELECT; keep that contract and parse defensively.
 - Schema text must come from the live database (`schema_text()`), not hard-coded strings; business notes live in `db.BUSINESS_NOTES`.
-- Model name is configurable (`NEUROQUERY_MODEL`); do not hard-code it elsewhere.
+- Model/API settings are configurable via environment (`LLM_API_KEY`, optional `LLM_API_URL`, `NEUROQUERY_MODEL`); do not hard-code them elsewhere.
 - Treat model explanations as display text only; never execute or trust them.
 
 ## 5. 🔌 API and data rules

@@ -12,7 +12,7 @@ Legend: `[x]` done · `[ ]` to do · priority P0 (next) / P1 / P2.
 - [x] FastAPI app factory with `/api/ask`, `/schema`, `/examples`, `/history`, `/upload`, `/health`
 - [x] Deterministic sample e-commerce database (seeded on first start)
 - [x] Schema introspection and prompt-ready `schema_text()` (FKs, low-cardinality values, business notes)
-- [x] Pluggable generators: Anthropic (Messages API via httpx) and offline Demo
+- [x] Pluggable generators: LLM API (HTTP via httpx) and offline Demo
 - [x] One-shot SQL self-repair on execution errors
 - [x] CSV upload with type inference and size/row limits
 - [x] Persistent query history
@@ -37,7 +37,7 @@ Legend: `[x]` done · `[ ]` to do · priority P0 (next) / P1 / P2.
 - [x] Project docs (PRD, ARCHITECTURE, RULES, DESIGN, TASKS, MEMORY)
 
 ## 🚀 Next (v0.2)
-- [ ] **P0** Run the evaluation with the Claude engine and record the score in `MEMORY.md`
+- [ ] **P0** Run the evaluation with the LLM engine and record the score in `MEMORY.md`
 - [ ] **P0** Grow the golden set to 40+ questions (joins, filters, date ranges, ties, ambiguous wording)
 - [ ] **P0** Deploy (Render, Railway or Fly.io) and add a live demo link to the README
 - [ ] **P1** Delete uploaded tables from the UI (`DELETE /api/tables/{name}`, only for uploaded ones)
