@@ -206,11 +206,19 @@ python -m app.evaluate           # execution accuracy on the golden question set
 compares result sets (order-insensitive), which is the standard *execution accuracy* metric.
 Run it with your API key to get a real score for the LLM, and add more cases as you find failures.
 
-## 🐳 Docker
+## 🤖 CI/CD (GitHub Actions, advanced)
 
-```bash
-docker build -t neuroquery . && docker run -p 8000:8000 -e LLM_API_KEY=your_key neuroquery
-```
+Workflows live in `.github/workflows/` and `.github/dependabot.yml`:
+
+| Workflow | Triggers | What it does |
+|---|---|---|
+| [`ci.yml`](.github/workflows/ci.yml) | `push`/`pull_request`→`main`, manual, weekly | **Quality matrix** (Python 3.11/3.12): `compileall`, `pip check`, `pytest` + coverage + JUnit, offline `app.evaluate` (`NEUROQUERY_ENGINE=demo`), advisory `pip-audit`. **Docker build** (Buildx + GHA cache) + container **smoke test** (`/api/health`). Concurrency cancel, least-privilege permissions, artifacts retained. Final **all-checks** gate for branch protection. |
+| [`docker-publish.yml`](.github/workflows/docker-publish.yml) | `push`→`main`, tags `v*`, manual | Builds/pushes image to **GHCR** (`ghcr.io/<owner>/<repo>`) with OCI metadata, semver/SHA tags, GHA cache, SBOM/provenance, and build attestation. |
+| [`codeql.yml`](.github/workflows/codeql.yml) | `push`/`pull_request`→`main`, weekly | **CodeQL** security analysis for `python` and `javascript-typescript` (`security-extended`). |
+| [`dependency-review.yml`](.github/workflows/dependency-review.yml) | `pull_request`→`main` | Blocks/highlights vulnerable dependency changes (fails on **high** severity) with PR summary comment. |
+| [`dependabot.yml`](.github/dependabot.yml) | weekly | Automated updates for `pip`, `github-actions`, and `docker` (grouped minor/patch). |
+
+**Recommended repo settings (GitHub → Settings):** protect `main` and require status check **`CI / all checks`** (+ CodeQL checks if desired); enable *Dependency graph* and *Dependabot alerts* (required for dependency review). GHCR publish uses `GITHUB_TOKEN` with `packages: write`—no extra secret needed unless publishing elsewhere.
 
 ## 🗺️ Roadmap (after the MVP)
 
