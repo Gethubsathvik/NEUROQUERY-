@@ -212,7 +212,7 @@ jobs:
             type=sha,prefix=ci-
             type=raw,value=ci
       - name: Build image (cached, local load)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false
