@@ -1,0 +1,372 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".gitignore"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: "Manual deploy target (placeholder job; no secrets required)"
+        required: false
+        default: "none"
+        type: choice
+        options: [none, staging, production]
+      run_security_advisories:
+        description: "Run advisory security scans (non-gating)"
+        required: false
+        default: true
+        type: boolean
+  schedule:
+    - cron: "23 5 * * 1" # weekly drift/security (Mon 05:23 UTC)
+
+concurrency:
+  group: cicd-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  NEUROQUERY_ENGINE: demo
+  IMAGE_NAME: neuroquery
+  REGISTRY: ghcr.io
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Stage 1: fast checks (parallel)
+  # ---------------------------------------------------------------------------
+  lint:
+    name: lint / ruff
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install lint deps
+        run: python -m pip install --upgrade pip && pip install ruff
+      - name: Ruff format check (advisory)
+        continue-on-error: true
+        run: ruff format --check .
+      - name: Ruff lint (advisory)
+        continue-on-error: true
+        run: ruff check . --output-format=github
+
+  typecheck:
+    name: typecheck / mypy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install mypy
+      - name: Mypy (advisory)
+        continue-on-error: true
+        run: mypy app --config-file pyproject.toml --no-error-summary || true
+
+  security-advisory:
+    name: security / advisory scans
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name != 'workflow_dispatch' || inputs.run_security_advisories
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-audit bandit
+      - name: Bandit (advisory)
+        continue-on-error: true
+        run: bandit -q -r app -x tests,.kilo,.venv -f txt || true
+      - name: pip-audit (advisory)
+        continue-on-error: true
+        run: python -m pip_audit -r requirements.txt --progress-spinner off || true
+
+  # ---------------------------------------------------------------------------
+  # Stage 2: required quality gates
+  # ---------------------------------------------------------------------------
+  test:
+    name: test / py${{ matrix.python-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest-cov
+      - name: Validate (compile/import sanity)
+        run: |
+          python -m compileall -q app tests
+          pip check
+          python -c "from app.main import create_app; create_app(); print('app factory ok')"
+      - name: Pytest + coverage
+        run: |
+          mkdir -p test-results
+          python -m pytest -q --maxfail=1 --disable-warnings \
+            --junitxml=test-results/junit-py${{ matrix.python-version }}-${{ matrix.os }}.xml \
+            --cov=app --cov-report=term-missing \
+            --cov-report=xml:coverage-py${{ matrix.python-version }}-${{ matrix.os }}.xml
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-py${{ matrix.python-version }}-${{ matrix.os }}
+          path: |
+            test-results/*.xml
+            coverage-*.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+  evaluation:
+    name: evaluation / demo harness
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run evaluation harness (offline/demo)
+        run: python -m app.evaluate
+      - name: Upload evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-report
+          path: eval/report.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # Stage 3: build, scan, smoke (parallel where safe)
+  # ---------------------------------------------------------------------------
+  build-docker:
+    name: build / docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [test]
+    permissions:
+      contents: read
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=ci-
+            type=raw,value=ci
+      - name: Build image (cached, local load)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:ci
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Export image artifact
+        run: docker save ${{ env.IMAGE_NAME }}:ci -o /tmp/neuroquery-ci-image.tar
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-ci
+          path: /tmp/neuroquery-ci-image.tar
+          retention-days: 3
+
+  container-smoke:
+    name: smoke / container runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build-docker]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image-ci
+          path: /tmp
+      - name: Load image
+        run: docker load -i /tmp/neuroquery-ci-image.tar
+      - name: Smoke test container
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name neuroquery-ci \
+            -p 18000:8000 \
+            -e NEUROQUERY_ENGINE=demo \
+            -e NEUROQUERY_DATA_DIR=/tmp/data \
+            ${{ env.IMAGE_NAME }}:ci
+          ok=0
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:18000/api/health >/tmp/health.json; then ok=1; break; fi
+            sleep 1
+          done
+          docker logs neuroquery-ci || true
+          test "$ok" = "1"
+          cat /tmp/health.json
+          python3 -c "import json; d=json.load(open('/tmp/health.json')); assert d.get('status')=='ok', d; print('health ok')"
+          docker stop neuroquery-ci
+
+  container-scan:
+    name: scan / trivy image (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build-docker]
+    if: github.event_name != 'workflow_dispatch' || inputs.run_security_advisories
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image-ci
+          path: /tmp
+      - name: Load image
+        run: docker load -i /tmp/neuroquery-ci-image.tar
+      - name: Trivy scan (advisory)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:ci
+          format: table
+          exit-code: "0"
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH"
+
+  # ---------------------------------------------------------------------------
+  # Stage 4: manual deploy placeholders (no secrets; safe no-op structure)
+  # ---------------------------------------------------------------------------
+  deploy-staging:
+    name: deploy / staging (manual placeholder)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [evaluation, container-smoke]
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'staging'
+    environment:
+      name: staging
+      url: https://example.invalid/neuroquery-staging
+    steps:
+      - name: Deployment placeholder
+        run: |
+          echo "Staging deploy placeholder: add provider steps + secrets/environment protection."
+          echo "Image: ${{ env.IMAGE_NAME }}:ci (build artifact from this run)"
+
+  deploy-production:
+    name: deploy / production (manual placeholder)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [evaluation, container-smoke]
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'production'
+    environment:
+      name: production
+      url: https://example.invalid/neuroquery
+    steps:
+      - name: Deployment placeholder
+        run: |
+          echo "Production deploy placeholder: add provider steps + secrets/environment protection."
+          echo "Image: ${{ env.IMAGE_NAME }}:ci (build artifact from this run)"
+
+  # ---------------------------------------------------------------------------
+  # Stage 5: required status gate (use this for branch protection)
+  # ---------------------------------------------------------------------------
+  pipeline-status:
+    name: pipeline status
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs:
+      - lint
+      - typecheck
+      - security-advisory
+      - test
+      - evaluation
+      - build-docker
+      - container-smoke
+      - container-scan
+      - deploy-staging
+      - deploy-production
+    steps:
+      - name: Evaluate required jobs
+        env:
+          LINT: ${{ needs.lint.result }}
+          TYPECHECK: ${{ needs.typecheck.result }}
+          SECURITY: ${{ needs.security-advisory.result }}
+          TEST: ${{ needs.test.result }}
+          EVAL: ${{ needs.evaluation.result }}
+          BUILD: ${{ needs.build-docker.result }}
+          SMOKE: ${{ needs.container-smoke.result }}
+          SCAN: ${{ needs.container-scan.result }}
+          STAGING: ${{ needs.deploy-staging.result }}
+          PROD: ${{ needs.deploy-production.result }}
+        run: |
+          echo "lint=$LINT typecheck=$TYPECHECK security=$SECURITY test=$TEST eval=$EVAL build=$BUILD smoke=$SMOKE scan=$SCAN staging=$STAGING prod=$PROD"
+          # Required gates (advisory jobs may be success/skipped; deploys are skipped unless manually selected)
+          test "$TEST" = "success"
+          test "$EVAL" = "success"
+          test "$BUILD" = "success"
+          test "$SMOKE" = "success"
+          # Non-gating but must not hard-fail the run logic if skipped by conditions
+          case "$LINT" in success|skipped) ;; *) echo "lint failed ($LINT)"; exit 1;; esac
+          case "$TYPECHECK" in success|skipped) ;; *) echo "typecheck failed ($TYPECHECK)"; exit 1;; esac
+          case "$SECURITY" in success|skipped) ;; *) echo "security advisory failed ($SECURITY)"; exit 1;; esac
+          case "$SCAN" in success|skipped) ;; *) echo "container scan failed ($SCAN)"; exit 1;; esac
+          case "$STAGING" in success|skipped) ;; *) echo "deploy-staging failed ($STAGING)"; exit 1;; esac
+          case "$PROD" in success|skipped) ;; *) echo "deploy-production failed ($PROD)"; exit 1;; esac
+          echo "Pipeline required gates passed."
