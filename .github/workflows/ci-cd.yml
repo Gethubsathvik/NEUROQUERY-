@@ -271,24 +271,23 @@ jobs:
     if: github.event_name != 'workflow_dispatch' || inputs.run_security_advisories
     permissions:
       contents: read
-      security-events: write
     steps:
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
           name: docker-image-ci
           path: /tmp
-      - name: Load image
-        run: docker load -i /tmp/queryx-ci-image.tar
-      - name: Trivy scan (advisory)
+      - name: Scan image with Trivy container
         continue-on-error: true
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:ci
-          format: table
-          exit-code: "0"
-          vuln-type: "os,library"
-          severity: "CRITICAL,HIGH"
+        run: |
+          docker run --rm \
+            -v /tmp/queryx-ci-image.tar:/tmp/queryx-ci-image.tar:ro \
+            aquasec/trivy:latest \
+            image --input /tmp/queryx-ci-image.tar \
+            --format table \
+            --exit-code 0 \
+            --vuln-type os,library \
+            --severity CRITICAL,HIGH
 
   # ---------------------------------------------------------------------------
   # Stage 4: manual deploy placeholders (no secrets; safe no-op structure)
