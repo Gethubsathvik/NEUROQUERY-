@@ -1,1 +1,1 @@
-"""NEUROQUERY: natural-language questions to safe SQL, results and charts."""
+"""QUERYX: natural-language questions to safe SQL, results and charts."""

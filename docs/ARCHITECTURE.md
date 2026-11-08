@@ -1,4 +1,4 @@
-# 🏗️ ARCHITECTURE: NEUROQUERY
+# 🏗️ ARCHITECTURE: QUERYX
 
 ## 1. 🔭 Overview
 A single FastAPI service serves a JSON API and a static single-page UI. SQL generation is
@@ -18,7 +18,7 @@ FastAPI (app/main.py)
            ─► History.add()        (app/history.py)
         on QueryError (once): Generator.repair() ─► validate ─► run
         ▼
-SQLite files in NEUROQUERY_DATA_DIR:  neuroquery.db (data)   history.db (query log)
+SQLite files in QUERYX_DATA_DIR:  queryx.db (data)   history.db (query log)
 ```
 
 ## 2. 🧩 Components
@@ -95,11 +95,11 @@ Error mapping: 400 unsafe SQL or bad upload · 408 timeout · 422 unanswerable, 
 |---|---|---|
 | `LLM_API_KEY` | unset | Enables the LLM engine |
 | `LLM_API_URL` | provider default (chat-completions style) | Override the LLM HTTP endpoint |
-| `NEUROQUERY_MODEL` | `gpt-4o-mini` | Model used for generation and repair |
-| `NEUROQUERY_ENGINE` | unset | `demo` forces the offline engine |
-| `NEUROQUERY_DATA_DIR` | `./data` | Location of `neuroquery.db` and `history.db` |
-| `NEUROQUERY_MAX_ROWS` | 500 | Row cap per query |
-| `NEUROQUERY_QUERY_TIMEOUT` | 3 | Seconds |
+| `QUERYX_MODEL` | `gpt-4o-mini` | Model used for generation and repair |
+| `QUERYX_ENGINE` | unset | `demo` forces the offline engine |
+| `QUERYX_DATA_DIR` | `./data` | Location of `queryx.db` and `history.db` |
+| `QUERYX_MAX_ROWS` | 500 | Row cap per query |
+| `QUERYX_QUERY_TIMEOUT` | 3 | Seconds |
 
 ## 9. 🧠 Key decisions
 | Decision | Reason |
@@ -121,7 +121,7 @@ Error mapping: 400 unsafe SQL or bad upload · 408 timeout · 422 unanswerable, 
 - `python -m app.evaluate` writes `eval/report.json` (execution accuracy).
 
 ## 11. 🚀 Deployment
-`Dockerfile` runs `uvicorn app.main:app` on port 8000 with `NEUROQUERY_DATA_DIR=/srv/data`.
+`Dockerfile` runs `uvicorn app.main:app` on port 8000 with `QUERYX_DATA_DIR=/srv/data`.
 Mount a volume at `/srv/data` for persistence. Add authentication before exposing publicly.
 
 ## 12. ⚠️ Known limitations

@@ -1,4 +1,4 @@
-# 🎨 DESIGN: NEUROQUERY UI
+# 🎨 DESIGN: QUERYX UI
 
 The UI is one file, `static/index.html`: plain HTML, CSS variables and vanilla JS, with Chart.js 4 for charts.
 Principles: clarity first (always show the SQL), calm neutral surfaces, one accent color, works in light and dark.

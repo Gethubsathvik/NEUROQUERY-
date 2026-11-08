@@ -5,6 +5,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY static ./static
 COPY eval ./eval
-ENV NEUROQUERY_DATA_DIR=/srv/data
+ENV QUERYX_DATA_DIR=/srv/data
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

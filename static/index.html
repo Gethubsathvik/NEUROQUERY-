@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NEUROQUERY</title>
+<title>QUERYX</title>
 <style>
   :root {
     --bg:#f6f7f9; --panel:#ffffff; --text:#1b1f24; --muted:#667085; --border:#e3e6eb;
@@ -59,7 +59,7 @@
 </head>
 <body>
 <header>
-  <h1>NEUROQUERY</h1>
+  <h1>QUERYX</h1>
   <span class="badge" id="engine">engine: …</span>
   <span class="muted">Ask questions about your data in plain English.</span>
 </header>
@@ -209,7 +209,7 @@ $("#csvBtn").onclick = () => {
   if (!last) return;
   const text = [last.columns, ...last.rows].map(r => r.map(csvCell).join(",")).join("\n");
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = "neuroquery_result.csv"; a.click();
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = "queryx_result.csv"; a.click();
 };
 $("#csv").onchange = async (e) => {
   const f = e.target.files[0]; if (!f) return;

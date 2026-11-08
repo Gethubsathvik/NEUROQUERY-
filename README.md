@@ -1,4 +1,4 @@
-# 🧠 NEUROQUERY: ask your data in plain English
+# 🧠 QUERYX: ask your data in plain English
 
 A natural-language-to-SQL BI tool. Type a question, get the generated SQL, a result table
 and an auto-picked chart. Built as an AI/Data Science portfolio MVP with the parts most
@@ -25,7 +25,7 @@ python -m uvicorn app.main:app --reload
 
 Now any question works, including on your own data: use **📤 Upload CSV** in the sidebar
 (try `sample_data/marketing_spend.csv`, then ask "total spend by channel").
-Model is configurable with `NEUROQUERY_MODEL`. See `.env.example`.
+Model is configurable with `QUERYX_MODEL`. See `.env.example`.
 
 ## 🏗️ Architecture (current)
 
@@ -67,7 +67,7 @@ question -> schema-aware prompt -> LLM (or demo engine) -> SQL
 
 ## 🧩 MVC + service structure
 
-NEUROQUERY can be understood (and refactored) using an MVC + service layering. Today the layers are lightweight; the mapping below shows where responsibilities live and how to separate them as the codebase grows.
+QUERYX can be understood (and refactored) using an MVC + service layering. Today the layers are lightweight; the mapping below shows where responsibilities live and how to separate them as the codebase grows.
 
 | Layer | Responsibility | Current mapping | Target (example) |
 |---|---|---|---|
@@ -168,7 +168,7 @@ The current app is a **modular monolith**—the right starting point. Microservi
 
 Use this checklist to build the right mental model before changing code.
 
-1. **🎯 Clarify the goal.** Is this a bug fix, a new feature, a safety change, or a refactor? For NEUROQUERY, any change that touches SQL generation/execution is **safety-critical**.
+1. **🎯 Clarify the goal.** Is this a bug fix, a new feature, a safety change, or a refactor? For QUERYX, any change that touches SQL generation/execution is **safety-critical**.
 2. **🔎 Trace the end-to-end flow.** For a question: `UI -> POST /api/ask -> schema/prompt -> generator -> SQL -> safety.validate -> db.execute_readonly -> chart.suggest -> response`. Read `app/main.py` first, then follow into services/modules.
 3. **🧩 Identify the layer/feature.** Decide: is it a controller concern (HTTP), service concern (orchestration), model/data concern (DB/schema), or integration concern (LLM)? Put logic in the right place (see MVC/feature sections).
 4. **🛡️ Start with safety and contracts.** If SQL or data access changes, update/extend `app/safety.py` and its tests *before* trusting happy-path behavior. Keep the generator/DB behind interfaces.
@@ -185,7 +185,7 @@ Use this checklist to build the right mental model before changing code.
 
 ## 🔁 Three-Cycle Live Proof (him-spec / mentation)
 
-Use three tight cycles to prove NEUROQUERY works end-to-end (demo-safe, then real). Each cycle is: **Plan → Run → Verify → Record**.
+Use three tight cycles to prove QUERYX works end-to-end (demo-safe, then real). Each cycle is: **Plan → Run → Verify → Record**.
 
 | Cycle | Goal | What to run | Proof to capture | Exit criteria |
 |---|---|---|---|---|
@@ -212,7 +212,7 @@ Workflows live in `.github/workflows/` and `.github/dependabot.yml`:
 
 | Workflow | Triggers | What it does |
 |---|---|---|
-| [`ci.yml`](.github/workflows/ci.yml) | `push`/`pull_request`→`main`, manual, weekly | **Quality matrix** (Python 3.11/3.12): `compileall`, `pip check`, `pytest` + coverage + JUnit, offline `app.evaluate` (`NEUROQUERY_ENGINE=demo`), advisory `pip-audit`. **Docker build** (Buildx + GHA cache) + container **smoke test** (`/api/health`). Concurrency cancel, least-privilege permissions, artifacts retained. Final **all-checks** gate for branch protection. |
+| [`ci.yml`](.github/workflows/ci.yml) | `push`/`pull_request`→`main`, manual, weekly | **Quality matrix** (Python 3.11/3.12): `compileall`, `pip check`, `pytest` + coverage + JUnit, offline `app.evaluate` (`QUERYX_ENGINE=demo`), advisory `pip-audit`. **Docker build** (Buildx + GHA cache) + container **smoke test** (`/api/health`). Concurrency cancel, least-privilege permissions, artifacts retained. Final **all-checks** gate for branch protection. |
 | [`docker-publish.yml`](.github/workflows/docker-publish.yml) | `push`→`main`, tags `v*`, manual | Builds/pushes image to **GHCR** (`ghcr.io/<owner>/<repo>`) with OCI metadata, semver/SHA tags, GHA cache, SBOM/provenance, and build attestation. |
 | [`codeql.yml`](.github/workflows/codeql.yml) | `push`/`pull_request`→`main`, weekly | **CodeQL** security analysis for `python` and `javascript-typescript` (`security-extended`). |
 | [`dependency-review.yml`](.github/workflows/dependency-review.yml) | `pull_request`→`main` | Blocks/highlights vulnerable dependency changes (fails on **high** severity) with PR summary comment. |

@@ -128,7 +128,7 @@ class DemoGenerator:
         raise NoAnswer(
             "Demo mode (no LLM_API_KEY set) only understands the sample questions, such as: "
             + "; ".join(EXAMPLES[:5])
-            + ". Set LLM_API_KEY (and optionally LLM_API_URL/NEUROQUERY_MODEL) to ask anything about your data."
+            + ". Set LLM_API_KEY (and optionally LLM_API_URL/QUERYX_MODEL) to ask anything about your data."
         )
 
     def repair(self, question: str, schema_text: str, bad_sql: str, error: str) -> GeneratedSQL:
@@ -207,8 +207,8 @@ class LLMGenerator:
 
 def get_generator():
     key = os.environ.get("LLM_API_KEY", "").strip()
-    if key and os.environ.get("NEUROQUERY_ENGINE", "").lower() != "demo":
-        model = os.environ.get("NEUROQUERY_MODEL", "").strip() or DEFAULT_MODEL
+    if key and os.environ.get("QUERYX_ENGINE", "").lower() != "demo":
+        model = os.environ.get("QUERYX_MODEL", "").strip() or DEFAULT_MODEL
         api_url = os.environ.get("LLM_API_URL", "").strip() or DEFAULT_API_URL
         return LLMGenerator(key, model, api_url)
     return DemoGenerator()

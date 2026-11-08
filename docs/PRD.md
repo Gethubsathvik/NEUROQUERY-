@@ -1,9 +1,9 @@
-# 📋 PRD: NEUROQUERY
+# 📋 PRD: QUERYX
 
 **Status:** MVP built (v0.1.0) · **Type:** AI / Data Science portfolio project
 
 ## 1. 🧾 Summary
-NEUROQUERY lets a non-technical user ask questions about a database in plain English and get back
+QUERYX lets a non-technical user ask questions about a database in plain English and get back
 the generated SQL, a result table and an automatically chosen chart. The MVP focuses on
 trustworthy answers: every query passes layered safety checks and the engine is measurable
 with an evaluation harness.
@@ -74,7 +74,7 @@ with an evaluation harness.
 
 ## 10. 🧱 Constraints and assumptions
 - SQLite only; single shared database per deployment.
-- LLM mode needs `LLM_API_KEY` (and optional `LLM_API_URL`/`NEUROQUERY_MODEL`) and outbound network access.
+- LLM mode needs `LLM_API_KEY` (and optional `LLM_API_URL`/`QUERYX_MODEL`) and outbound network access.
 - Browser needs internet to load Chart.js from the CDN (table view works without).
 
 ## 11. ⚠️ Risks

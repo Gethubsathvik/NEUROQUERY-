@@ -1,4 +1,4 @@
-"""NEUROQUERY API: ask questions in plain English, get safe SQL, results and a chart."""
+"""QUERYX API: ask questions in plain English, get safe SQL, results and a chart."""
 from __future__ import annotations
 
 import os
@@ -24,17 +24,17 @@ class AskRequest(BaseModel):
 
 
 def create_app(data_dir: Path | str | None = None, generator=None) -> FastAPI:
-    data_path = Path(data_dir or os.environ.get("NEUROQUERY_DATA_DIR") or ROOT / "data")
+    data_path = Path(data_dir or os.environ.get("QUERYX_DATA_DIR") or ROOT / "data")
     data_path.mkdir(parents=True, exist_ok=True)
-    max_rows = int(os.environ.get("NEUROQUERY_MAX_ROWS", "500"))
-    timeout_s = float(os.environ.get("NEUROQUERY_QUERY_TIMEOUT", "3"))
+    max_rows = int(os.environ.get("QUERYX_MAX_ROWS", "500"))
+    timeout_s = float(os.environ.get("QUERYX_QUERY_TIMEOUT", "3"))
 
-    db = Database(data_path / "neuroquery.db")
+    db = Database(data_path / "queryx.db")
     db.ensure_seeded()
     history = History(data_path / "history.db")
     gen = generator or get_generator()
 
-    app = FastAPI(title="NEUROQUERY", version="0.1.0")
+    app = FastAPI(title="QUERYX", version="0.1.0")
 
     @app.get("/api/health")
     def health():

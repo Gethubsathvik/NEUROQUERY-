@@ -39,7 +39,7 @@ def test_health_and_schema(client):
 
 def test_index_served(client):
     r = client.get("/")
-    assert r.status_code == 200 and "NEUROQUERY" in r.text
+    assert r.status_code == 200 and "QUERYX" in r.text
 
 
 def test_ask_returns_sql_rows_and_chart(client):

@@ -40,8 +40,8 @@ defaults:
 env:
   PYTHONUNBUFFERED: "1"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  NEUROQUERY_ENGINE: demo
-  IMAGE_NAME: neuroquery
+  QUERYX_ENGINE: demo
+  IMAGE_NAME: queryx
   REGISTRY: ghcr.io
 
 jobs:
@@ -222,12 +222,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Export image artifact
-        run: docker save ${{ env.IMAGE_NAME }}:ci -o /tmp/neuroquery-ci-image.tar
+        run: docker save ${{ env.IMAGE_NAME }}:ci -o /tmp/queryx-ci-image.tar
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
           name: docker-image-ci
-          path: /tmp/neuroquery-ci-image.tar
+          path: /tmp/queryx-ci-image.tar
           retention-days: 3
 
   container-smoke:
@@ -243,25 +243,25 @@ jobs:
           name: docker-image-ci
           path: /tmp
       - name: Load image
-        run: docker load -i /tmp/neuroquery-ci-image.tar
+        run: docker load -i /tmp/queryx-ci-image.tar
       - name: Smoke test container
         run: |
           set -euo pipefail
-          docker run -d --rm --name neuroquery-ci \
+          docker run -d --rm --name queryx-ci \
             -p 18000:8000 \
-            -e NEUROQUERY_ENGINE=demo \
-            -e NEUROQUERY_DATA_DIR=/tmp/data \
+            -e QUERYX_ENGINE=demo \
+            -e QUERYX_DATA_DIR=/tmp/data \
             ${{ env.IMAGE_NAME }}:ci
           ok=0
           for i in $(seq 1 40); do
             if curl -fsS http://127.0.0.1:18000/api/health >/tmp/health.json; then ok=1; break; fi
             sleep 1
           done
-          docker logs neuroquery-ci || true
+          docker logs queryx-ci || true
           test "$ok" = "1"
           cat /tmp/health.json
           python3 -c "import json; d=json.load(open('/tmp/health.json')); assert d.get('status')=='ok', d; print('health ok')"
-          docker stop neuroquery-ci
+          docker stop queryx-ci
 
   container-scan:
     name: scan / trivy image (advisory)
@@ -279,7 +279,7 @@ jobs:
           name: docker-image-ci
           path: /tmp
       - name: Load image
-        run: docker load -i /tmp/neuroquery-ci-image.tar
+        run: docker load -i /tmp/queryx-ci-image.tar
       - name: Trivy scan (advisory)
         continue-on-error: true
         uses: aquasecurity/trivy-action@0.28.0
@@ -301,7 +301,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'staging'
     environment:
       name: staging
-      url: https://example.invalid/neuroquery-staging
+      url: https://example.invalid/queryx-staging
     steps:
       - name: Deployment placeholder
         run: |
@@ -316,7 +316,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'production'
     environment:
       name: production
-      url: https://example.invalid/neuroquery
+      url: https://example.invalid/queryx
     steps:
       - name: Deployment placeholder
         run: |

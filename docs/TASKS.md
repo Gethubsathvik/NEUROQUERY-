@@ -1,4 +1,4 @@
-# ✅ TASKS: NEUROQUERY
+# ✅ TASKS: QUERYX
 
 Legend: `[x]` done · `[ ]` to do · priority P0 (next) / P1 / P2.
 
@@ -58,7 +58,7 @@ Legend: `[x]` done · `[ ]` to do · priority P0 (next) / P1 / P2.
 - [ ] 🤖 CI pipeline (tests + evaluation on every push)
 
 ## ⚠️ Known issues
-- 📤 Uploaded tables cannot be removed from the UI (delete `data/neuroquery.db` to reset).
+- 📤 Uploaded tables cannot be removed from the UI (delete `data/queryx.db` to reset).
 - 🧪 Demo engine only understands the sample questions.
 - 🌐 Chart.js loads from a CDN, so charts need internet in the browser.
 - 🕘 History is global (no user separation).

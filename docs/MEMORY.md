@@ -1,10 +1,10 @@
-# 🧠 MEMORY: NEUROQUERY
+# 🧠 MEMORY: QUERYX
 
 Living project memory: context, decisions, gotchas and current state. Read this first when
 resuming work; update it whenever you decide something or learn something.
 
 ## 1. 🧾 Project in one paragraph
-NEUROQUERY is a natural-language-to-SQL BI tool (FastAPI + SQLite + vanilla JS). A question becomes
+QUERYX is a natural-language-to-SQL BI tool (FastAPI + SQLite + vanilla JS). A question becomes
 SQL via an LLM engine (or an offline demo engine), is validated and executed under strict read-only
 limits, and returns a table plus an auto-chosen chart. Built as an AI/Data Science portfolio MVP
 that emphasizes **🛡️ safety** and **📊 evaluation**.
@@ -34,7 +34,7 @@ Docs: `PRD.md` (what/why), `ARCHITECTURE.md` (how), `RULES.md` (constraints), `D
 | 2026-11-08 | Unsafe SQL is never auto-repaired | Prevents iterating against the validator |
 | 2026-11-08 | Raw `httpx` HTTP call to an LLM API (configurable URL/model) | Fewer dependencies; provider flexibility |
 | 2026-11-08 | SQLite + single-file UI | Fast to run and fork; trade-off is no multi-user or scale |
-| 2026-11-08 | Default LLM model configurable via `NEUROQUERY_MODEL`/`LLM_API_KEY` | Avoid hard-coding providers; easy to compare models in evaluation |
+| 2026-11-08 | Default LLM model configurable via `QUERYX_MODEL`/`LLM_API_KEY` | Avoid hard-coding providers; easy to compare models in evaluation |
 | 2026-11-08 | Added MVC+service, feature-based, microservices evolution, mentation, and three-cycle live proof to README/docs | Clear structure, onboarding, and repeatable proof workflow |
 | 2026-11-08 | Removed provider/Kilo fingerprints from docs/code paths; generalized to LLM config | Neutral, portfolio-safe codebase |
 
