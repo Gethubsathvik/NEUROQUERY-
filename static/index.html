@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEUROQUERY</title>
+<style>
+  :root {
+    --bg:#f6f7f9; --panel:#ffffff; --text:#1b1f24; --muted:#667085; --border:#e3e6eb;
+    --accent:#3b5bdb; --accent-text:#ffffff; --code-bg:#f1f3f6; --error:#c92a2a; --ok:#2b8a3e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1115; --panel:#171a21; --text:#e8eaee; --muted:#9aa3b2; --border:#2a2f3a;
+            --accent:#748ffc; --accent-text:#0f1115; --code-bg:#1e222b; --error:#ff8787; --ok:#69db7c; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:14px 20px; border-bottom:1px solid var(--border); background:var(--panel);
+           display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:18px; }
+  .badge { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+  .layout { display:grid; grid-template-columns:280px 1fr; gap:16px; padding:16px 20px; max-width:1300px; margin:0 auto; }
+  @media (max-width:860px) { .layout { grid-template-columns:1fr; } }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .card h2 { margin:0 0 8px; font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  aside .card + .card, main .card + .card { margin-top:16px; }
+  .table-item { margin-bottom:8px; font-size:13px; }
+  .table-item b { display:block; }
+  .table-item span { color:var(--muted); font-size:12px; word-break:break-word; }
+  form.ask { display:flex; gap:8px; }
+  input[type=text] { flex:1; padding:10px 12px; border:1px solid var(--border); border-radius:8px;
+                     background:var(--bg); color:var(--text); font:inherit; }
+  button { padding:9px 14px; border-radius:8px; border:1px solid var(--border); background:var(--panel);
+           color:var(--text); font:inherit; cursor:pointer; }
+  button.primary { background:var(--accent); color:var(--accent-text); border-color:var(--accent); font-weight:600; }
+  button:disabled { opacity:.6; cursor:wait; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .chip { font-size:12px; padding:4px 10px; border-radius:999px; }
+  pre { margin:0; padding:10px 12px; background:var(--code-bg); border-radius:8px; overflow:auto;
+        font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre-wrap; }
+  .row { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .error { color:var(--error); }
+  .metrics { display:flex; gap:12px; flex-wrap:wrap; }
+  .metric { border:1px solid var(--border); border-radius:10px; padding:12px 18px; min-width:150px; }
+  .metric .v { font-size:28px; font-weight:700; }
+  .metric .l { font-size:12px; color:var(--muted); }
+  .tablewrap { overflow:auto; max-height:360px; border:1px solid var(--border); border-radius:8px; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th, td { padding:6px 10px; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; }
+  th { position:sticky; top:0; background:var(--panel); }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .chartbox { position:relative; height:320px; }
+  .hist-item { font-size:13px; padding:6px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+  .hist-item:last-child { border-bottom:0; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NEUROQUERY</h1>
+  <span class="badge" id="engine">engine: …</span>
+  <span class="muted">Ask questions about your data in plain English.</span>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="card">
+      <h2>Data</h2>
+      <div id="schema" class="muted">Loading…</div>
+    </div>
+    <div class="card">
+      <h2>Upload CSV</h2>
+      <input type="file" id="csv" accept=".csv">
+      <div id="uploadMsg" class="muted" style="margin-top:6px"></div>
+    </div>
+    <div class="card">
+      <h2>History</h2>
+      <div id="history" class="muted">No questions yet.</div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="card">
+      <form class="ask" id="askForm">
+        <input type="text" id="question" placeholder="e.g. Top 5 customers by revenue" maxlength="500" autocomplete="off" autofocus>
+        <button class="primary" id="askBtn" type="submit">Ask</button>
+      </form>
+      <div class="chips" id="examples"></div>
+    </div>
+
+    <div id="error" class="card error hidden"></div>
+
+    <div id="result" class="hidden">
+      <div class="card">
+        <div class="row"><h2 style="margin:0">Generated SQL</h2><button id="copySql" type="button">Copy</button></div>
+        <pre id="sql"></pre>
+        <div class="muted" id="explanation" style="margin-top:8px"></div>
+      </div>
+      <div class="card" id="vizCard">
+        <h2>Result</h2>
+        <div id="metrics" class="metrics hidden"></div>
+        <div id="chartbox" class="chartbox hidden"><canvas id="chart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="row"><h2 style="margin:0">Rows</h2><button id="csvBtn" type="button">Download CSV</button></div>
+        <div class="tablewrap"><table id="grid"></table></div>
+        <div class="muted" id="meta" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const PALETTE = ["#3b5bdb", "#f08c00", "#2b8a3e", "#c2255c", "#1098ad"];
+let chart = null, last = null;
+
+function esc(s) { const d = document.createElement("div"); d.textContent = String(s ?? ""); return d.innerHTML; }
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : `Request failed (${r.status})`);
+  return data;
+}
+
+async function loadSchema() {
+  const { tables } = await api("/api/schema");
+  $("#schema").innerHTML = tables.map(t =>
+    `<div class="table-item"><b>${esc(t.name)} <span>(${t.row_count} rows)</span></b>` +
+    `<span>${t.columns.map(c => esc(c.name)).join(", ")}</span></div>`).join("");
+}
+
+async function loadExamples() {
+  const { examples, engine } = await api("/api/examples");
+  $("#engine").textContent = "engine: " + engine + (engine === "demo" ? " (offline)" : "");
+  $("#examples").innerHTML = examples.map(e => `<button type="button" class="chip">${esc(e)}</button>`).join("");
+  document.querySelectorAll(".chip").forEach(b => b.onclick = () => { $("#question").value = b.textContent; ask(); });
+}
+
+async function loadHistory() {
+  const { items } = await api("/api/history?limit=10");
+  if (!items.length) { $("#history").textContent = "No questions yet."; return; }
+  $("#history").innerHTML = items.map(i => `<div class="hist-item" data-q="${esc(i.question)}">${esc(i.question)}</div>`).join("");
+  document.querySelectorAll(".hist-item").forEach(el => el.onclick = () => { $("#question").value = el.dataset.q; ask(); });
+}
+
+function showError(msg) { const e = $("#error"); e.textContent = msg; e.classList.remove("hidden"); $("#result").classList.add("hidden"); }
+
+function renderTable(cols, rows) {
+  const numeric = cols.map((_, i) => rows.length && rows.every(r => typeof r[i] === "number" || r[i] === null));
+  $("#grid").innerHTML = "<thead><tr>" + cols.map(c => `<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>" +
+    rows.map(r => "<tr>" + r.map((v, i) => `<td class="${numeric[i] ? "num" : ""}">${v === null ? "<span class='muted'>null</span>" : esc(v)}</td>`).join("") + "</tr>").join("") + "</tbody>";
+}
+
+function renderViz(res) {
+  const type = res.chart.type;
+  $("#metrics").classList.add("hidden"); $("#chartbox").classList.add("hidden");
+  if (chart) { chart.destroy(); chart = null; }
+  if (type === "metric") {
+    $("#metrics").innerHTML = res.columns.map((c, i) =>
+      `<div class="metric"><div class="v">${esc(Number(res.rows[0][i]).toLocaleString())}</div><div class="l">${esc(c)}</div></div>`).join("");
+    $("#metrics").classList.remove("hidden"); $("#vizCard").classList.remove("hidden"); return;
+  }
+  if ((type === "bar" || type === "line") && window.Chart) {
+    const xi = res.columns.indexOf(res.chart.x);
+    $("#chartbox").classList.remove("hidden"); $("#vizCard").classList.remove("hidden");
+    chart = new Chart($("#chart"), {
+      type,
+      data: {
+        labels: res.rows.map(r => r[xi]),
+        datasets: res.chart.y.map((y, k) => {
+          const yi = res.columns.indexOf(y), color = PALETTE[k % PALETTE.length];
+          return { label: y, data: res.rows.map(r => r[yi]), backgroundColor: color + "cc", borderColor: color, tension: .25, borderWidth: 2 };
+        })
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: res.chart.y.length > 1 } } }
+    });
+    return;
+  }
+  $("#vizCard").classList.add("hidden");
+}
+
+async function ask() {
+  const q = $("#question").value.trim();
+  if (q.length < 3) return;
+  $("#askBtn").disabled = true; $("#askBtn").textContent = "Thinking…"; $("#error").classList.add("hidden");
+  try {
+    const res = await api("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
+    last = res;
+    $("#sql").textContent = res.sql;
+    $("#explanation").textContent = res.explanation;
+    renderViz(res); renderTable(res.columns, res.rows);
+    $("#meta").textContent = `${res.row_count} row(s)` + (res.truncated ? " (truncated)" : "") + ` · ${res.elapsed_ms} ms` + (res.attempts > 1 ? " · auto-repaired SQL" : "");
+    $("#result").classList.remove("hidden");
+    loadHistory();
+  } catch (e) { showError(e.message); }
+  finally { $("#askBtn").disabled = false; $("#askBtn").textContent = "Ask"; }
+}
+
+function csvCell(v) { const s = v === null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+
+$("#askForm").onsubmit = (e) => { e.preventDefault(); ask(); };
+$("#copySql").onclick = () => { if (last) navigator.clipboard.writeText(last.sql); };
+$("#csvBtn").onclick = () => {
+  if (!last) return;
+  const text = [last.columns, ...last.rows].map(r => r.map(csvCell).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = "neuroquery_result.csv"; a.click();
+};
+$("#csv").onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const fd = new FormData(); fd.append("file", f);
+  try {
+    const r = await api("/api/upload", { method: "POST", body: fd });
+    $("#uploadMsg").textContent = `Imported ${r.rows} rows into table "${r.table}".`;
+    loadSchema();
+  } catch (err) { $("#uploadMsg").textContent = err.message; }
+  e.target.value = "";
+};
+
+loadSchema(); loadExamples(); loadHistory();
+</script>
+</body>
+</html>
