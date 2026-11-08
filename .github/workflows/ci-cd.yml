@@ -290,37 +290,36 @@ jobs:
             --severity CRITICAL,HIGH
 
   # ---------------------------------------------------------------------------
-  # Stage 4: manual deploy placeholders (no secrets; safe no-op structure)
+  # Stage 4: manual deploy placeholders (always run after required build/test jobs)
+  # These jobs are placeholders and do not perform an actual deployment.
   # ---------------------------------------------------------------------------
   deploy-staging:
-    name: deploy / staging (manual placeholder)
+    name: deploy / staging (placeholder)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [evaluation, container-smoke]
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'staging'
     environment:
       name: staging
       url: https://example.invalid/queryx-staging
     steps:
       - name: Deployment placeholder
         run: |
-          echo "Staging deploy placeholder: add provider steps + secrets/environment protection."
-          echo "Image: ${{ env.IMAGE_NAME }}:ci (build artifact from this run)"
+          echo "Staging deploy placeholder: no deployment provider is configured."
+          echo "Image: ${{ env.IMAGE_NAME }}:ci"
 
   deploy-production:
-    name: deploy / production (manual placeholder)
+    name: deploy / production (placeholder)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [evaluation, container-smoke]
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'production'
     environment:
       name: production
       url: https://example.invalid/queryx
     steps:
       - name: Deployment placeholder
         run: |
-          echo "Production deploy placeholder: add provider steps + secrets/environment protection."
-          echo "Image: ${{ env.IMAGE_NAME }}:ci (build artifact from this run)"
+          echo "Production deploy placeholder: no deployment provider is configured."
+          echo "Image: ${{ env.IMAGE_NAME }}:ci"
 
   # ---------------------------------------------------------------------------
   # Stage 5: required status gate (use this for branch protection)
@@ -356,12 +355,10 @@ jobs:
           PROD: ${{ needs.deploy-production.result }}
         run: |
           echo "lint=$LINT typecheck=$TYPECHECK security=$SECURITY test=$TEST eval=$EVAL build=$BUILD smoke=$SMOKE scan=$SCAN staging=$STAGING prod=$PROD"
-          # Required gates (advisory jobs may be success/skipped; deploys are skipped unless manually selected)
           test "$TEST" = "success"
           test "$EVAL" = "success"
           test "$BUILD" = "success"
           test "$SMOKE" = "success"
-          # Non-gating but must not hard-fail the run logic if skipped by conditions
           case "$LINT" in success|skipped) ;; *) echo "lint failed ($LINT)"; exit 1;; esac
           case "$TYPECHECK" in success|skipped) ;; *) echo "typecheck failed ($TYPECHECK)"; exit 1;; esac
           case "$SECURITY" in success|skipped) ;; *) echo "security advisory failed ($SECURITY)"; exit 1;; esac
