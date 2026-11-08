@@ -12,12 +12,6 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      deploy_target:
-        description: "Manual deploy target (placeholder job; no secrets required)"
-        required: false
-        default: "none"
-        type: choice
-        options: [none, staging, production]
       run_security_advisories:
         description: "Run advisory security scans (non-gating)"
         required: false
@@ -188,7 +182,7 @@ jobs:
           retention-days: 14
 
   # ---------------------------------------------------------------------------
-  # Stage 3: build, scan, smoke (parallel where safe)
+  # Stage 3: build, scan, smoke
   # ---------------------------------------------------------------------------
   build-docker:
     name: build / docker image
@@ -290,39 +284,7 @@ jobs:
             --severity CRITICAL,HIGH
 
   # ---------------------------------------------------------------------------
-  # Stage 4: manual deploy placeholders (always run after required build/test jobs)
-  # These jobs are placeholders and do not perform an actual deployment.
-  # ---------------------------------------------------------------------------
-  deploy-staging:
-    name: deploy / staging (placeholder)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [evaluation, container-smoke]
-    environment:
-      name: staging
-      url: https://example.invalid/queryx-staging
-    steps:
-      - name: Deployment placeholder
-        run: |
-          echo "Staging deploy placeholder: no deployment provider is configured."
-          echo "Image: ${{ env.IMAGE_NAME }}:ci"
-
-  deploy-production:
-    name: deploy / production (placeholder)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [evaluation, container-smoke]
-    environment:
-      name: production
-      url: https://example.invalid/queryx
-    steps:
-      - name: Deployment placeholder
-        run: |
-          echo "Production deploy placeholder: no deployment provider is configured."
-          echo "Image: ${{ env.IMAGE_NAME }}:ci"
-
-  # ---------------------------------------------------------------------------
-  # Stage 5: required status gate (use this for branch protection)
+  # Stage 4: required status gate (use this for branch protection)
   # ---------------------------------------------------------------------------
   pipeline-status:
     name: pipeline status
@@ -338,8 +300,6 @@ jobs:
       - build-docker
       - container-smoke
       - container-scan
-      - deploy-staging
-      - deploy-production
     steps:
       - name: Evaluate required jobs
         env:
@@ -351,10 +311,8 @@ jobs:
           BUILD: ${{ needs.build-docker.result }}
           SMOKE: ${{ needs.container-smoke.result }}
           SCAN: ${{ needs.container-scan.result }}
-          STAGING: ${{ needs.deploy-staging.result }}
-          PROD: ${{ needs.deploy-production.result }}
         run: |
-          echo "lint=$LINT typecheck=$TYPECHECK security=$SECURITY test=$TEST eval=$EVAL build=$BUILD smoke=$SMOKE scan=$SCAN staging=$STAGING prod=$PROD"
+          echo "lint=$LINT typecheck=$TYPECHECK security=$SECURITY test=$TEST eval=$EVAL build=$BUILD smoke=$SMOKE scan=$SCAN"
           test "$TEST" = "success"
           test "$EVAL" = "success"
           test "$BUILD" = "success"
@@ -363,6 +321,4 @@ jobs:
           case "$TYPECHECK" in success|skipped) ;; *) echo "typecheck failed ($TYPECHECK)"; exit 1;; esac
           case "$SECURITY" in success|skipped) ;; *) echo "security advisory failed ($SECURITY)"; exit 1;; esac
           case "$SCAN" in success|skipped) ;; *) echo "container scan failed ($SCAN)"; exit 1;; esac
-          case "$STAGING" in success|skipped) ;; *) echo "deploy-staging failed ($STAGING)"; exit 1;; esac
-          case "$PROD" in success|skipped) ;; *) echo "deploy-production failed ($PROD)"; exit 1;; esac
           echo "Pipeline required gates passed."
